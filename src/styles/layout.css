@@ -1,0 +1,35 @@
+/* 桌面壳、侧栏、页头、表格等 class 已在美工 tokens.css 中（.pd-shell 等）。
+ * 这里只补应用级、且不覆盖令牌的小规则。
+ */
+
+html,
+body,
+#root {
+  min-width: 0;
+}
+
+/* 让 1fr 列可以小于子项 min-content，否则对比表在 1024 宽会把主栏撑出约 10px */
+.pd-main {
+  min-width: 0;
+}
+
+body {
+  overflow-x: auto;
+}
+
+/* 第 3 阶段：制作模式占满主栏，专注时收起侧栏 */
+.pd-shell.is-focus {
+  grid-template-columns: 1fr;
+}
+
+.pd-studio-main {
+  min-width: 0;
+  width: 100%;
+  max-width: none;
+  padding: 0;
+  height: 100vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+}
