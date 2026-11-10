@@ -12,7 +12,7 @@ import {
   usageFromGrid,
   type BoardTile,
 } from '../data/boardMath.ts'
-import { CLEAN_EXPORT_OPTIONS, downloadBlob, drawGrid, gridToPngBlob } from '../data/renderGrid.ts'
+import { CLEAN_EXPORT_OPTIONS, downloadBlob, drawGrid, gridToPngBlob, paperBackground } from '../data/renderGrid.ts'
 import { formatQty } from '../data/inventoryMath.ts'
 import { findColor } from '../data/palettes.ts'
 import {
@@ -259,7 +259,8 @@ export function ToolsPage() {
       }
       canvas.width = Math.max(1, Math.ceil(width))
       canvas.height = Math.max(1, height)
-      ctx.fillStyle = '#FAF7F5'
+      // 预览用暖纸底；导出走 gridToPngBlob(CLEAN_EXPORT_OPTIONS)，白底、留空格透明。
+      ctx.fillStyle = paperBackground()
       ctx.fillRect(0, 0, canvas.width, canvas.height)
       for (const tile of tiles) {
         let x = 0
@@ -283,7 +284,8 @@ export function ToolsPage() {
     const cellPx = previewGrid.cols * previewGrid.rows > 6400 ? 8 : 16
     canvas.width = previewGrid.cols * cellPx
     canvas.height = previewGrid.rows * cellPx
-    ctx.fillStyle = '#FAF7F5'
+    // 预览用暖纸底，合板留空格也画成纸色；导出 PNG 用白底，留空格打成透明。
+    ctx.fillStyle = paperBackground()
     ctx.fillRect(0, 0, canvas.width, canvas.height)
     drawGrid(ctx, previewGrid, 0, 0, cellPx, { showGrid, showCodes, emptyStyle: tab === 'merge' ? 'preview' : undefined })
   }, [tab, previewGrid, tiles, sourceGrid, showGrid, showCodes])

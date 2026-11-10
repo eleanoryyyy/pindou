@@ -54,7 +54,7 @@ code {
   inset: 0;
   border: 0;
   padding: 0;
-  background: rgba(250, 247, 245, 0.7);
+  background: color-mix(in srgb, var(--pd-bg) 70%, transparent);
   z-index: 25;
   cursor: pointer;
 }
@@ -66,7 +66,7 @@ code {
   display: grid;
   place-items: center;
   padding: 24px;
-  background: rgba(250, 247, 245, 0.7);
+  background: color-mix(in srgb, var(--pd-bg) 70%, transparent);
 }
 
 .pd-dialog {
@@ -140,8 +140,9 @@ code {
 .warehouse-card {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 4px;
   min-height: 140px;
+  padding: 16px 16px 12px;
 }
 
 .warehouse-card__name {
@@ -151,11 +152,27 @@ code {
   color: var(--pd-text);
 }
 
+.warehouse-card__meta {
+  margin: 0;
+  font-size: 13px;
+  color: var(--pd-text-secondary);
+}
+
 .warehouse-card__actions {
   display: flex;
-  flex-wrap: wrap;
+  align-items: center;
   gap: 4px;
   margin-top: auto;
+  padding-top: 12px;
+}
+
+.warehouse-card__actions .pd-btn-secondary {
+  min-height: 36px;
+  padding: 0 16px;
+}
+
+.warehouse-card__actions .pd-btn-text:first-of-type {
+  margin-left: auto;
 }
 
 .color-suggest {
@@ -227,11 +244,25 @@ code {
   max-width: 100%;
 }
 
-/* 图纸对比表比库存表多两列。1024 宽内容区约 752px，按库存列宽合计会超出约 10px，这里略收。 */
-.pd-table.compare-table .col-brand { width: 88px; }
+/* 图纸对比表比库存表多列。1024 宽内容区约 752px，单价/小计加上后把其他列再收一档。 */
+.pd-table.compare-table .col-swatch { width: 36px; }
+.pd-table.compare-table .col-code { width: 64px; }
+.pd-table.compare-table .col-brand { width: 56px; }
 .pd-table.compare-table .col-qty,
-.pd-table.compare-table .col-need { width: 80px; }
-.pd-table.compare-table .col-status { width: 80px; }
+.pd-table.compare-table .col-need { width: 52px; }
+.pd-table.compare-table .col-status { width: 56px; }
+.pd-table.compare-table .col-price { width: 108px; }
+.pd-table.compare-table .col-amount { width: 80px; }
+
+.pd-table.restock-table .col-swatch { width: 40px; }
+.pd-table.restock-table .col-code { width: 72px; }
+.pd-table.restock-table .col-brand { width: 72px; }
+.pd-table.restock-table .col-qty,
+.pd-table.restock-table .col-threshold,
+.pd-table.restock-table .col-need { width: 64px; }
+.pd-table.restock-table .col-status { width: 88px; }
+.pd-table.restock-table .col-price { width: 108px; }
+.pd-table.restock-table .col-amount { width: 88px; }
 
 .pd-table .col-swatch { width: 52px; }
 .pd-table .col-code { width: 96px; }
@@ -328,7 +359,7 @@ code {
   flex-direction: column;
   gap: 8px;
   min-height: 220px;
-  padding: 12px;
+  padding: 16px;
   text-align: left;
 }
 
@@ -429,7 +460,7 @@ code {
   height: 100%;
   min-width: 0;
   min-height: 0;
-  background: var(--pd-bg, #FAF7F5);
+  background: var(--pd-bg);
 }
 
 .studio-head {
@@ -467,7 +498,7 @@ code {
   min-width: 0;
   min-height: 0;
   overflow: hidden;
-  background: #FAF7F5;
+  background: var(--pd-bg);
   display: flex;
   flex-direction: column;
 }
@@ -571,7 +602,7 @@ code {
 
 .studio-color:hover,
 .studio-color.is-on {
-  background: #FAF7F5;
+  background: var(--pd-bg);
 }
 
 .studio-color.is-on {
@@ -707,7 +738,7 @@ code {
   min-width: 0;
   min-height: 420px;
   overflow: auto;
-  background: #FAF7F5;
+  background: var(--pd-bg);
   border: 1px solid var(--pd-accent-soft, #E8C4C0);
   border-radius: 16px;
   padding: 16px;
@@ -814,6 +845,10 @@ code {
 
 .progress-panel {
   min-width: 0;
+}
+
+.progress-panel.pd-card {
+  padding: 16px;
 }
 
 .progress-panel .pd-section-title {
@@ -1116,4 +1151,165 @@ code {
 .recognize-locate {
   margin: 0 0 16px;
   padding-left: 0;
+}
+
+.pd-table th.col-price,
+.pd-table th.col-amount {
+  white-space: nowrap;
+}
+
+.pd-table td.col-amount {
+  color: #2C2A28;
+  font-variant-numeric: tabular-nums;
+}
+
+.pd-table td.col-amount.is-empty {
+  color: #8A8580;
+}
+
+.price-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  min-width: 0;
+}
+
+.price-field {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+  width: 100%;
+  min-width: 0;
+}
+
+.price-field.default-price-field {
+  justify-content: flex-start;
+}
+
+.price-prefix {
+  color: #8A8580;
+  flex: none;
+}
+
+.price-input.pd-input,
+.price-field .pd-input {
+  box-sizing: border-box;
+  width: 4.6em;
+  min-width: 0;
+  max-width: 100%;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  padding: 4px 6px;
+  min-height: 32px;
+}
+
+.default-price-field .pd-input {
+  width: 8em;
+}
+
+.price-custom {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 6px;
+  margin-top: 2px;
+  font-size: 12px;
+  color: #8A8580;
+  white-space: nowrap;
+}
+
+.price-custom .pd-btn {
+  min-height: 22px;
+  padding: 0;
+  font-size: 12px;
+}
+
+.price-error {
+  margin: 2px 0 0;
+  font-size: 12px;
+  color: #8A8580;
+}
+
+.pd-quote-headline {
+  margin: 0 0 4px;
+  color: #2C2A28;
+  font-variant-numeric: tabular-nums;
+}
+
+.quote-unpriced {
+  margin: 0 0 8px;
+  color: #8A8580;
+}
+
+.pd-quote-total {
+  margin: 12px 0 0;
+  color: #2C2A28;
+  font-variant-numeric: tabular-nums;
+}
+
+.pd-btn-danger {
+  background: var(--pd-danger);
+  color: #fff;
+}
+
+.pd-btn-danger:hover,
+.pd-btn-danger:active {
+  filter: brightness(0.95);
+}
+
+.pd-dialog-actions.is-split {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.pd-dialog-actions.is-split .pd-btn {
+  width: 100%;
+}
+
+.clear-warehouse-body {
+  margin: 0;
+  font-size: 14px;
+  color: var(--pd-text);
+}
+
+.clear-warehouse-note {
+  margin: 8px 0 0;
+}
+
+.clear-warehouse-backup {
+  margin: 8px 0 0;
+  font-size: 13px;
+  color: var(--pd-text-secondary);
+}
+
+.per-color-field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.per-color-field .pd-input {
+  width: 120px;
+}
+
+.per-color-field__unit {
+  font-size: 13px;
+  color: var(--pd-text-secondary);
+}
+
+.per-color-error {
+  margin: 6px 0 0;
+  font-size: 12px;
+  color: var(--pd-danger);
+}
+
+.per-color-total {
+  margin: 8px 0 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.pd-input.is-invalid {
+  border-color: var(--pd-danger);
 }

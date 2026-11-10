@@ -185,3 +185,20 @@ export type WorkImage = {
   blob: Blob
   thumbBlob: Blob
 }
+
+/** 豆仓默认单价，存整数厘。没有记录表示默认价未填。li 为 0 表示已填的 0 元。 */
+export type BeadPriceDefault = {
+  warehouseId: string
+  li: number
+  updatedAt: number
+}
+
+/** 色号自定单价，按豆仓 + 品牌 + 色号记忆，存整数厘。 */
+export type BeadPriceOverride = {
+  id: string
+  warehouseId: string
+  brand: BrandId
+  code: string
+  li: number
+  updatedAt: number
+}

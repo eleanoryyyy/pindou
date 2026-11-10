@@ -9,7 +9,7 @@ import {
   skuKey,
   usageDiffersFromGrid,
 } from '../../data/boardMath.ts'
-import { AXIS_MARGIN, CLEAN_EXPORT_OPTIONS, downloadBlob, drawAxes, drawGrid, gridToPngBlob } from '../../data/renderGrid.ts'
+import { AXIS_MARGIN, CLEAN_EXPORT_OPTIONS, downloadBlob, drawAxes, drawGrid, gridToPngBlob, paperBackground } from '../../data/renderGrid.ts'
 import { findColor } from '../../data/palettes.ts'
 import { formatQty } from '../../data/inventoryMath.ts'
 import {
@@ -275,7 +275,8 @@ export function StudioPage() {
     if (!ctx) return
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
     ctx.clearRect(0, 0, cssW, cssH)
-    ctx.fillStyle = '#FAF7F5'
+    // 制作页预览铺暖纸底；导出 PNG 走 CLEAN_EXPORT_OPTIONS（白底 #FFFFFF，留空格透明）。
+    ctx.fillStyle = paperBackground()
     ctx.fillRect(0, 0, cssW, cssH)
     ctx.save()
     ctx.translate(current.pan.x, current.pan.y)

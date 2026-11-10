@@ -1,8 +1,9 @@
 import { db } from './db.ts'
+import { exportPriceTables, replacePriceTables } from './priceRepo.ts'
 import { InventoryError } from './types.ts'
 
 export const BACKUP_FORMAT = 'pindou-system-backup'
-export const BACKUP_VERSION = 4
+export const BACKUP_VERSION = 5
 
 type BackupFile = {
   format: string
@@ -19,6 +20,8 @@ type BackupFile = {
   patternProgress?: unknown[]
   workItems?: unknown[]
   workImages?: { id: string; type: string; data: string; thumbType?: string; thumbData?: string }[]
+  beadPriceDefaults?: unknown[]
+  beadPriceOverrides?: unknown[]
 }
 
 async function blobToData(blob: Blob): Promise<{ type: string; data: string }> {
@@ -37,7 +40,7 @@ function dataToBlob(type: string, data: string): Blob {
 }
 
 export async function exportBackup(): Promise<string> {
-  const [warehouses, stockItems, ledger, settings, patterns, patternBuilds, images, patternGrids, patternProgress, workItems, workImageRows] = await Promise.all([
+  const [warehouses, stockItems, ledger, settings, patterns, patternBuilds, images, patternGrids, patternProgress, workItems, workImageRows, prices] = await Promise.all([
     db.warehouses.toArray(),
     db.stockItems.toArray(),
     db.ledger.toArray(),
@@ -49,6 +52,7 @@ export async function exportBackup(): Promise<string> {
     db.patternProgress.toArray(),
     db.workItems.toArray(),
     db.workImages.toArray(),
+    exportPriceTables(),
   ])
   const patternImages = []
   for (const image of images) {
@@ -77,6 +81,8 @@ export async function exportBackup(): Promise<string> {
     patternProgress,
     workItems,
     workImages: [],
+    beadPriceDefaults: prices.beadPriceDefaults,
+    beadPriceOverrides: prices.beadPriceOverrides,
   }
   const workImages = []
   for (const image of workImageRows) {
@@ -92,6 +98,15 @@ export async function exportBackup(): Promise<string> {
   }
   file.workImages = workImages
   return JSON.stringify(file, null, 2)
+}
+
+export function backupDownloadName(now = new Date()): string {
+  return `拼豆系统备份-${now.toISOString().slice(0, 10)}.json`
+}
+
+export async function exportBackupFile(): Promise<{ json: string; filename: string }> {
+  const json = await exportBackup()
+  return { json, filename: backupDownloadName() }
 }
 
 export async function importBackup(jsonText: string): Promise<void> {
@@ -114,9 +129,11 @@ export async function importBackup(jsonText: string): Promise<void> {
   const patternProgress = parsed.patternProgress ?? []
   const workItems = parsed.workItems ?? []
   const workImages = parsed.workImages ?? []
+  const beadPriceDefaults = parsed.beadPriceDefaults ?? []
+  const beadPriceOverrides = parsed.beadPriceOverrides ?? []
   await db.transaction(
     'rw',
-    [db.warehouses, db.stockItems, db.ledger, db.settings, db.patterns, db.patternImages, db.patternBuilds, db.patternGrids, db.patternProgress, db.workItems, db.workImages],
+    [db.warehouses, db.stockItems, db.ledger, db.settings, db.patterns, db.patternImages, db.patternBuilds, db.patternGrids, db.patternProgress, db.workItems, db.workImages, db.beadPriceDefaults, db.beadPriceOverrides],
     async () => {
       await db.warehouses.clear()
       await db.stockItems.clear()
@@ -129,6 +146,7 @@ export async function importBackup(jsonText: string): Promise<void> {
       await db.patternProgress.clear()
       await db.workItems.clear()
       await db.workImages.clear()
+      await replacePriceTables([], [])
       if (parsed.warehouses.length) await db.warehouses.bulkAdd(parsed.warehouses as never)
       if (parsed.stockItems.length) await db.stockItems.bulkAdd(parsed.stockItems as never)
       if (parsed.ledger.length) await db.ledger.bulkAdd(parsed.ledger as never)
@@ -152,6 +170,7 @@ export async function importBackup(jsonText: string): Promise<void> {
           thumbBlob: image.thumbData ? dataToBlob(image.thumbType || image.type, image.thumbData) : dataToBlob(image.type, image.data),
         })
       }
+      await replacePriceTables(beadPriceDefaults as never, beadPriceOverrides as never)
     },
   )
 }

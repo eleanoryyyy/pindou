@@ -22,7 +22,8 @@ import {
   updatePatternUsage,
 } from '../../data/patternRepo.ts'
 import { usageDiffersFromGrid } from '../../data/boardMath.ts'
-import { messageOf } from '../../data/repo.ts'
+import { getLastWarehouseId, messageOf } from '../../data/repo.ts'
+import { resolvePriceWarehouseId } from '../../data/priceRepo.ts'
 import type { BrandId, Pattern, PatternBuild, PatternGrid, PatternStatus } from '../../data/types.ts'
 import { useInventory } from '../../inventory/InventoryContext.tsx'
 import { ComparePanel, ScopeSelect } from './ComparePanel.tsx'
@@ -62,6 +63,7 @@ export function PatternDetailPage() {
   const [completeWarehouse, setCompleteWarehouse] = useState('')
   const [undoId, setUndoId] = useState<string | null>(null)
   const [gridRecord, setGridRecord] = useState<PatternGrid | undefined>()
+  const [lastWarehouseId, setLastWarehouseId] = useState<string | undefined>()
   const preview = useBlobUrl(image)
 
   async function reload() {
@@ -79,6 +81,7 @@ export function PatternDetailPage() {
     setBuilds(await listPatternBuilds(patternId))
     const record = await getPatternGrid(patternId)
     setGridRecord(record ? { cols: record.cols, rows: record.rows, cells: record.cells } : undefined)
+    setLastWarehouseId(await getLastWarehouseId())
     setLoaded(true)
     setError('')
   }
@@ -88,6 +91,8 @@ export function PatternDetailPage() {
   }, [patternId])
 
   const scopeLabel = scope === 'all' ? '全部合计' : (warehouses.find((item) => item.id === scope)?.name ?? '豆仓')
+  const priceWarehouseId = resolvePriceWarehouseId(scope, warehouses, lastWarehouseId)
+  const priceWarehouseLabel = warehouses.find((item) => item.id === priceWarehouseId)?.name
   const result = useMemo(
     () => (pattern ? compareToStock(usageFromPattern(pattern), allStock, scope, { holds: allHolds, ignoreHoldPatternIds: [pattern.id] }) : null),
     [pattern, allStock, allHolds, scope],
@@ -312,7 +317,7 @@ export function PatternDetailPage() {
           <h2 className="pd-section-title">消耗对比</h2>
           <ScopeSelect warehouses={warehouses} value={scope} onChange={setScope} />
         </div>
-        {result ? <ComparePanel title={pattern.name} result={result} scopeLabel={scopeLabel} /> : null}
+        {result ? <ComparePanel title={pattern.name} result={result} scopeLabel={scopeLabel} priceWarehouseId={priceWarehouseId} priceWarehouseLabel={priceWarehouseLabel} /> : null}
       </div>
 
       <div className="page-block">

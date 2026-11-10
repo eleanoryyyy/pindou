@@ -1,12 +1,14 @@
 import { Link } from 'react-router-dom'
 
 const colors = [
-  { name: '页面底', varName: '--pd-bg', hex: '#FAF7F5' },
+  { name: '页面底', varName: '--pd-bg', hex: '#F7F1E8' },
   { name: '卡片 / 导航底', varName: '--pd-surface', hex: '#FFFFFF' },
   { name: '正文', varName: '--pd-text', hex: '#2C2A28' },
   { name: '次要文字', varName: '--pd-text-secondary', hex: '#8A8580' },
   { name: '强调（少用）', varName: '--pd-accent', hex: '#C4787A' },
   { name: '浅粉底 / 描边', varName: '--pd-accent-soft', hex: '#E8C4C0' },
+  { name: '备用墨色', varName: '--pd-ink', hex: '#2C2A28' },
+  { name: '备用墨色按下', varName: '--pd-ink-pressed', hex: '#45413D' },
 ]
 
 export function StyleGuidePage() {
@@ -22,7 +24,7 @@ export function StyleGuidePage() {
 
       <div className="page-block">
         <h2 className="pd-section-title">色板</h2>
-        <p className="pd-muted hint">强调色少用，让豆色做主角。状态只用文字颜色，不要左侧色条。</p>
+        <p className="pd-muted hint">主按钮用玫瑰色 #C4787A 实心白字，按下 #A86466。导航选中是玫瑰色加粗字加左侧小圆点，不要粉色底块。芯片选中用玫瑰色细描边加浅底。底色是暖纸 #F7F1E8。状态只用文字颜色，不要左侧色条。</p>
         <div className="style-grid">
           {colors.map((c) => (
             <div key={c.varName} className="pd-card style-swatch">

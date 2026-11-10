@@ -22,6 +22,7 @@ export const CODE_MIN_PX = 12
 export const AXIS_COLOR = '#8A8580'
 export const EXPORT_BG = '#FFFFFF'
 
+/** 导出 PNG：白底、四边轴号；空格由 punchEmptyCells 打成透明，不要铺成纸色。 */
 export const CLEAN_EXPORT_OPTIONS: GridRenderOptions = {
   cellPx: 16,
   showGrid: true,
@@ -34,8 +35,13 @@ export const GRID_MAJOR = 'rgba(44,42,40,0.45)'
 export const CODE_ON_LIGHT = '#2C2A28'
 export const CODE_ON_DARK = '#FFFFFF'
 
-const WARM_DIM = 'rgba(250,247,245,0.7)'
-const WARM_PAPER = '#FAF7F5'
+/** 仅用于页面预览（制作页/工具页画布）。导出不要用这个，导出底是 EXPORT_BG。无 document 时回退到当前官方 --pd-bg。 */
+export const PAPER_BG = '#F7F1E8'
+
+export function paperBackground(): string {
+  if (typeof document === 'undefined') return PAPER_BG
+  return getComputedStyle(document.documentElement).getPropertyValue('--pd-bg').trim() || PAPER_BG
+}
 
 export function highlightStrokeColor(): string {
   if (typeof document === 'undefined') return '#8C4A4A'
@@ -140,7 +146,7 @@ export function drawGrid(
       if (empty) {
         if (options.emptyStyle === 'preview') {
           const lw = options.lineWidthScale ?? 1
-          ctx.fillStyle = WARM_PAPER
+          ctx.fillStyle = paperBackground()
           ctx.fillRect(x, y, cellPx, cellPx)
           ctx.save()
           ctx.strokeStyle = GRID_FINE
@@ -156,8 +162,11 @@ export function drawGrid(
       ctx.fillRect(x, y, cellPx, cellPx)
       const isHi = options.highlight && options.highlight === key && !completed.has(key)
       if (options.highlight && !isHi) {
-        ctx.fillStyle = WARM_DIM
+        ctx.save()
+        ctx.globalAlpha = 0.7
+        ctx.fillStyle = paperBackground()
         ctx.fillRect(x, y, cellPx, cellPx)
+        ctx.restore()
       }
       if (isHi && cellPx >= 2) {
         const lw = options.lineWidthScale ?? 1

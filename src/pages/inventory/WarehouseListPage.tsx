@@ -47,7 +47,7 @@ export function WarehouseListPage() {
               <Link className="warehouse-card__name" to={`/inventory/${warehouse.id}`}>
                 {warehouse.name}
               </Link>
-              <p className="pd-muted" style={{ margin: 0 }}>
+              <p className="warehouse-card__meta">
                 {counts.get(warehouse.id) ?? 0} 个色号
               </p>
               <div className="warehouse-card__actions">
@@ -59,7 +59,7 @@ export function WarehouseListPage() {
                 </button>
                 <button
                   type="button"
-                  className="pd-btn pd-btn-danger-text"
+                  className="pd-btn pd-btn-text pd-btn-danger-text"
                   onClick={() => setDeletingId(warehouse.id)}
                 >
                   删除

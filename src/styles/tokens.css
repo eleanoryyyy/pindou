@@ -10,7 +10,7 @@
   --pd-accent: #c4787a;
   --pd-accent-soft: #e8c4c0;
   --pd-accent-pressed: #a86466;
-  --pd-ink: #2c2a28;          /* 主按钮实心色，2026-11-10 起替代玫瑰色实心 */
+  --pd-ink: #2c2a28;          /* 深暖墨，备用；主按钮用玫瑰色 */
   --pd-ink-pressed: #45413d;
   --pd-ok: #6b9b7a;
   --pd-warn: #c4a35a;
@@ -102,13 +102,13 @@
 }
 
 .pd-btn-primary {
-  background: var(--pd-ink);
+  background: var(--pd-accent);
   color: #fff;
 }
 
 .pd-btn-primary:hover,
 .pd-btn-primary:active {
-  background: var(--pd-ink-pressed);
+  background: var(--pd-accent-pressed);
 }
 
 .pd-btn-secondary {
@@ -399,7 +399,7 @@
 .pd-nav-item:hover { color: var(--pd-text); }
 .pd-nav-item { position: relative; }
 .pd-nav-item.is-on {
-  color: var(--pd-text);
+  color: var(--pd-accent);
   font-weight: 600;
   background: transparent;
 }
@@ -511,4 +511,3 @@
   outline: 2px solid var(--pd-accent-soft);
   outline-offset: 2px;
 }
-

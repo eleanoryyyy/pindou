@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { EmptyState } from '../components/EmptyState.tsx'
 import { useFeedback } from '../components/Feedback.tsx'
 import { messageOf } from '../data/repo.ts'
+import { resolvePriceWarehouseId } from '../data/priceRepo.ts'
 import { compareToStock, mergeUsage, nextPendingPattern, statusLabel, usageFromPattern } from '../data/patternMath.ts'
 import { assertImageFile, getPatternThumb, listPatterns } from '../data/patternRepo.ts'
 import type { Pattern, PatternStatus } from '../data/types.ts'
@@ -90,6 +91,8 @@ export function PatternsPage() {
   }, [patterns, query, status])
 
   const scopeLabel = scope === 'all' ? '全部合计' : (warehouses.find((item) => item.id === scope)?.name ?? '豆仓')
+  const priceWarehouseId = resolvePriceWarehouseId(scope, warehouses, warehouses[0]?.id)
+  const priceWarehouseLabel = warehouses.find((item) => item.id === priceWarehouseId)?.name
 
   function cardResult(pattern: Pattern) {
     const result = compareToStock(usageFromPattern(pattern), allStock, scope, { holds: allHolds, ignoreHoldPatternIds: [pattern.id] })
@@ -210,7 +213,7 @@ export function PatternsPage() {
           {selectedResult ? (
             <div className="page-block">
               <h2 className="pd-section-title">已选 {selectedPatterns.length} 张图的消耗对比</h2>
-              <ComparePanel title="多图对比" result={selectedResult} scopeLabel={scopeLabel} />
+              <ComparePanel title="多图对比" result={selectedResult} scopeLabel={scopeLabel} priceWarehouseId={priceWarehouseId} priceWarehouseLabel={priceWarehouseLabel} />
             </div>
           ) : (
             <p className="pd-muted hint">勾选一张或多张图纸，可在下方对比指定豆仓或全部合计。</p>

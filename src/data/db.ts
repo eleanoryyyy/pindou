@@ -1,5 +1,5 @@
 import Dexie, { type EntityTable } from 'dexie'
-import type { LedgerEntry, Pattern, PatternBuild, PatternGridRecord, PatternImage, PatternProgress, StockItem, Warehouse, WorkImage, WorkItem } from './types.ts'
+import type { BeadPriceDefault, BeadPriceOverride, LedgerEntry, Pattern, PatternBuild, PatternGridRecord, PatternImage, PatternProgress, StockItem, Warehouse, WorkImage, WorkItem } from './types.ts'
 
 export type AppSetting = {
   key: string
@@ -18,6 +18,8 @@ class PindouDb extends Dexie {
   patternProgress!: EntityTable<PatternProgress, 'id'>
   workItems!: EntityTable<WorkItem, 'id'>
   workImages!: EntityTable<WorkImage, 'id'>
+  beadPriceDefaults!: EntityTable<BeadPriceDefault, 'warehouseId'>
+  beadPriceOverrides!: EntityTable<BeadPriceOverride, 'id'>
 
   constructor() {
     super('pindou-system')
@@ -61,6 +63,22 @@ class PindouDb extends Dexie {
       patternProgress: 'id, patternId, updatedAt',
       workItems: 'id, createdAt, patternId',
       workImages: 'id',
+    })
+    // v5：补色计价。豆仓默认单价与色号自定单价。只追加表。
+    this.version(5).stores({
+      warehouses: 'id, name, createdAt',
+      stockItems: 'id, warehouseId, [warehouseId+brand+code]',
+      ledger: 'id, warehouseId, createdAt, [warehouseId+brand+code]',
+      settings: 'key',
+      patterns: 'id, status, createdAt, name',
+      patternImages: 'id',
+      patternBuilds: 'id, patternId, createdAt, warehouseId',
+      patternGrids: 'id',
+      patternProgress: 'id, patternId, updatedAt',
+      workItems: 'id, createdAt, patternId',
+      workImages: 'id',
+      beadPriceDefaults: 'warehouseId',
+      beadPriceOverrides: 'id, warehouseId, [warehouseId+brand+code]',
     })
   }
 }

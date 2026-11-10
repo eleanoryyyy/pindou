@@ -2,7 +2,7 @@ import { useState, type FormEvent, type KeyboardEvent } from 'react'
 import { useFeedback } from '../../components/Feedback.tsx'
 import { Drawer } from '../../components/Overlay.tsx'
 import { applyTemplate, inbound, messageOf } from '../../data/repo.ts'
-import { KIT_TEMPLATES } from '../../data/templates.ts'
+import { formatTemplateTotal, KIT_TEMPLATES, parsePerColorQuantity } from '../../data/templates.ts'
 import type { BrandId } from '../../data/types.ts'
 import { ColorField } from './ColorField.tsx'
 
@@ -27,6 +27,8 @@ export function InboundDrawer({
     { code: '', quantity: '' },
   ])
   const [templateId, setTemplateId] = useState(KIT_TEMPLATES[0]?.id ?? '')
+  const [perColor, setPerColor] = useState('100')
+  const [perColorError, setPerColorError] = useState(false)
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
 
@@ -70,12 +72,19 @@ export function InboundDrawer({
     }
   }
 
+  const parsedPerColor = parsePerColorQuantity(perColor)
+
   async function submitTemplate(event: FormEvent) {
     event.preventDefault()
-    setBusy(true)
     setError('')
+    if (parsedPerColor === 'invalid') {
+      setPerColorError(true)
+      return
+    }
+    setPerColorError(false)
+    setBusy(true)
     try {
-      await applyTemplate(warehouseId, templateId)
+      await applyTemplate(warehouseId, templateId, parsedPerColor)
       await finish()
     } catch (err) {
       setError(messageOf(err))
@@ -218,10 +227,30 @@ export function InboundDrawer({
               ))}
             </select>
           </label>
-          {selectedTemplate ? (
-            <p className="pd-muted">
-              {selectedTemplate.brand} · {selectedTemplate.items.length} 个色号，将只写入当前豆仓。色号均来自开源色卡，数量是录入默认值。
+          <label className="pd-field">
+            <span className="pd-muted">每色粒数</span>
+            <div className="per-color-field">
+              <input
+                className={`pd-input${perColorError ? ' is-invalid' : ''}`}
+                value={perColor}
+                inputMode="numeric"
+                aria-label="每色粒数"
+                aria-invalid={perColorError}
+                onChange={(event) => {
+                  setPerColor(event.target.value)
+                  setPerColorError(false)
+                }}
+              />
+              <span className="per-color-field__unit">粒</span>
+            </div>
+            {perColorError ? <p className="per-color-error">请填正整数</p> : null}
+          </label>
+          {selectedTemplate && parsedPerColor !== 'invalid' ? (
+            <p className="pd-muted per-color-total">
+              {formatTemplateTotal(selectedTemplate.items.length, parsedPerColor)}
             </p>
+          ) : selectedTemplate ? (
+            <p className="pd-muted">将只写入当前豆仓。色号均来自开源色卡。</p>
           ) : null}
           <button type="submit" className="pd-btn pd-btn-primary" disabled={busy} style={{ marginTop: 12 }}>
             按模板录入

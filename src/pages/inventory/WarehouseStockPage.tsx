@@ -1,9 +1,16 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, Navigate, useParams, useSearchParams } from 'react-router-dom'
 import { EmptyState } from '../../components/EmptyState.tsx'
+import { useFeedback } from '../../components/Feedback.tsx'
+import { Dialog } from '../../components/Overlay.tsx'
+import { exportBackupFile } from '../../data/backup.ts'
 import { COLOR_FAMILIES } from '../../data/colorFamily.ts'
 import { formatQty } from '../../data/inventoryMath.ts'
-import { listLedger, listStock, setLastWarehouseId } from '../../data/repo.ts'
+import { clearWarehouseInventory, countHeldPatternsInWarehouse, listLedger, listStock, setLastWarehouseId } from '../../data/repo.ts'
+import {
+  formatClearWarehouseHoldsNote,
+  formatClearWarehouseMain,
+} from '../../data/warehouseClear.ts'
 import type { ColorFamilyId, LedgerEntry, StockLine } from '../../data/types.ts'
 import { useInventory } from '../../inventory/InventoryContext.tsx'
 import {
@@ -21,6 +28,7 @@ import { OutboundDrawer } from './OutboundDrawer.tsx'
 export function WarehouseStockPage() {
   const { warehouseId = '' } = useParams()
   const { ready, warehouses, refresh } = useInventory()
+  const { toast } = useFeedback()
   const warehouse = warehouses.find((item) => item.id === warehouseId)
   const [lines, setLines] = useState<StockLine[]>([])
   const [ledger, setLedger] = useState<LedgerEntry[]>([])
@@ -29,6 +37,10 @@ export function WarehouseStockPage() {
   const [family, setFamily] = useState<ColorFamilyId | 'all'>('all')
   const filterUnthresholdedStockout = isUnthresholdedStockoutFilter(searchParams)
   const [inboundOpen, setInboundOpen] = useState(false)
+  const [clearing, setClearing] = useState(false)
+  const [heldPatterns, setHeldPatterns] = useState(0)
+  const [clearBusy, setClearBusy] = useState(false)
+  const [clearError, setClearError] = useState('')
   const [outboundLine, setOutboundLine] = useState<StockLine | null>(null)
   const [editLine, setEditLine] = useState<StockLine | null>(null)
   const [loaded, setLoaded] = useState(false)
@@ -66,6 +78,40 @@ export function WarehouseStockPage() {
     await refresh()
   }
 
+  async function openClearDialog() {
+    setClearError('')
+    setHeldPatterns(await countHeldPatternsInWarehouse(warehouseId))
+    setClearing(true)
+  }
+
+  async function handleExportBackup() {
+    const { json, filename } = await exportBackupFile()
+    const blob = new Blob([json], { type: 'application/json;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = filename
+    document.body.append(link)
+    link.click()
+    link.remove()
+    URL.revokeObjectURL(url)
+    toast('已导出备份')
+  }
+
+  async function handleClearWarehouse() {
+    setClearBusy(true)
+    setClearError('')
+    try {
+      await clearWarehouseInventory(warehouseId)
+      await reloadAll()
+      setClearing(false)
+      toast('已清空豆仓')
+    } catch (err) {
+      setClearError(err instanceof Error ? err.message : '清空失败')
+      setClearBusy(false)
+    }
+  }
+
   if (ready && !warehouse) {
     return <Navigate to="/inventory" replace />
   }
@@ -100,6 +146,9 @@ export function WarehouseStockPage() {
           )}
           <button type="button" className="pd-btn pd-btn-primary" onClick={() => setInboundOpen(true)}>
             入库
+          </button>
+          <button type="button" className="pd-btn pd-btn-text pd-btn-danger-text" onClick={() => void openClearDialog()}>
+            清空
           </button>
         </div>
       </header>
@@ -215,6 +264,30 @@ export function WarehouseStockPage() {
         <OutboundDrawer line={outboundLine} onClose={() => setOutboundLine(null)} onDone={reloadAll} />
       ) : null}
       {editLine ? <EditItemDrawer line={editLine} onClose={() => setEditLine(null)} onDone={reloadAll} /> : null}
+      {clearing && warehouse ? (
+        <Dialog title="清空豆仓？" onClose={() => !clearBusy && setClearing(false)}>
+          <p className="clear-warehouse-body">{formatClearWarehouseMain(warehouse.name, lines.length)}</p>
+          {formatClearWarehouseHoldsNote(heldPatterns) ? (
+            <p className="clear-warehouse-note">{formatClearWarehouseHoldsNote(heldPatterns)}</p>
+          ) : null}
+          <p className="clear-warehouse-backup">
+            建议先导出备份
+            {' '}
+            <button type="button" className="pd-btn pd-btn-text" onClick={() => void handleExportBackup()}>
+              先导出
+            </button>
+          </p>
+          {clearError ? <p className="form-error">{clearError}</p> : null}
+          <div className="pd-dialog-actions is-split">
+            <button type="button" className="pd-btn pd-btn-secondary" autoFocus onClick={() => setClearing(false)} disabled={clearBusy}>
+              取消
+            </button>
+            <button type="button" className="pd-btn pd-btn-danger" onClick={() => void handleClearWarehouse()} disabled={clearBusy}>
+              清空
+            </button>
+          </div>
+        </Dialog>
+      ) : null}
     </section>
   )
 }

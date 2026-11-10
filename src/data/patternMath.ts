@@ -1,4 +1,15 @@
 import { findColor } from './palettes.ts'
+import {
+  formatLineAmount,
+  formatPriceYuan,
+  formatQuoteHeadline,
+  formatQuoteTotal,
+  formatQuoteTotalLine,
+  formatUnpricedNote,
+  quoteLine,
+  quoteSummary,
+} from './priceMath.ts'
+import { effectivePrice, emptyPriceBook, type PriceBook } from './priceRepo.ts'
 import { PATTERN_STATUS_LABEL, type BrandId, type Pattern, type PatternUsage, type StockItem } from './types.ts'
 
 export type UsageLine = {
@@ -150,36 +161,65 @@ export function formatShortageText(
   title: string,
   result: CompareResult,
   scopeLabel: string,
+  book: PriceBook = emptyPriceBook(''),
 ): string {
+  const priced = result.shortages.map((line) => {
+    const { li } = effectivePrice(book, line.brand, line.code)
+    return { line, li, quote: quoteLine(line.short, li) }
+  })
+  const quote = quoteSummary(priced.map((row) => ({ need: row.line.short, li: row.li })))
+  const note = formatUnpricedNote(quote)
   const header = [
     `${title}（对比：${scopeLabel}）`,
     result.ok ? '够拼' : `缺料，共 ${result.shortages.length} 色、缺 ${result.totalShort} 粒`,
+    result.ok ? '' : formatQuoteHeadline(quote),
+    ...(note ? [note] : []),
     '',
-  ]
+  ].filter((line, index, all) => line !== '' || index === all.length - 1 || all[index + 1] !== '')
   const body = result.ok
     ? result.lines.map((line) => `${line.brand} ${line.code}  需要 ${line.need}，库存 ${line.stock}，剩余 ${line.remaining}`)
-    : result.shortages.map((line) => `${line.brand} ${line.code}  缺 ${line.short}（需要 ${line.need}，库存 ${line.stock}）`)
-  return [...header, ...body, ''].join('\n')
+    : priced.map((row) => {
+        const price = row.li === null ? '未填' : formatPriceYuan(row.li)
+        return `${row.line.brand} ${row.line.code}  缺 ${row.line.short}  单价 ${price}  小计 ${formatLineAmount(row.quote)}（需要 ${row.line.need}，库存 ${row.line.stock}）`
+      })
+  const footer = result.ok || priced.length === 0 ? [''] : [formatQuoteTotalLine(quote), '']
+  return [...header, ...body, ...footer].join('\n')
 }
 
-export function formatShortageCsv(title: string, result: CompareResult, scopeLabel: string): string {
+export function formatShortageCsv(title: string, result: CompareResult, scopeLabel: string, book: PriceBook = emptyPriceBook('')): string {
+  const pricedMap = new Map(result.lines.map((line) => {
+    const { li } = effectivePrice(book, line.brand, line.code)
+    return [`${line.brand}::${line.code}`, { li, quote: quoteLine(line.short, li) }]
+  }))
+  const quote = quoteSummary(result.shortages.map((line) => {
+    const { li } = effectivePrice(book, line.brand, line.code)
+    return { need: line.short, li }
+  }))
+  const note = formatUnpricedNote(quote)
   const rows = [
-    ['对比', '结论', '品牌', '色号', '需要', '库存', '剩余', '缺口'],
-    ...result.lines.map((line) => [
-      scopeLabel,
-      result.label,
-      line.brand,
-      line.code,
-      String(line.need),
-      String(line.stock),
-      String(line.remaining),
-      String(line.short),
-    ]),
+    ['对比', '结论', '品牌', '色号', '需要', '库存', '剩余', '缺口', '单价', '小计', '合计'],
+    ...result.lines.map((line) => {
+      const priced = pricedMap.get(`${line.brand}::${line.code}`)
+      return [
+        scopeLabel,
+        result.label,
+        line.brand,
+        line.code,
+        String(line.need),
+        String(line.stock),
+        String(line.remaining),
+        String(line.short),
+        priced && priced.li !== null ? formatPriceYuan(priced.li) : (line.short > 0 ? '未填' : '—'),
+        priced ? formatLineAmount(priced.quote) : '—',
+        '',
+      ]
+    }),
+    ...(result.shortages.length ? [['合计', '', '', '', '', '', '', '', '', formatQuoteTotal(quote), formatQuoteTotal(quote) + (note ? `（${note}）` : '')]] : []),
   ]
   if (title) {
     /* title kept in filename; csv is tabular */
   }
-  return rows.map((row) => row.map(csvCell).join(',')).join('\n') + '\n'
+  return '\uFEFF' + rows.map((row) => row.map(csvCell).join(',')).join('\n') + '\n'
 }
 
 function csvCell(value: string): string {

@@ -8,7 +8,12 @@ import {
   quantityFromLedger,
 } from './inventoryMath.ts'
 import { normalizeCode, requireColor } from './palettes.ts'
-import { getTemplate } from './templates.ts'
+import { getTemplate, scaleTemplate } from './templates.ts'
+import {
+  CLEAR_WAREHOUSE_RELEASE_HOLDS,
+  countPatternsWithWarehouseHolds,
+  holdsFromOtherWarehouses,
+} from './warehouseClear.ts'
 import {
   InventoryError,
   stockItemId,
@@ -78,6 +83,32 @@ export async function deleteWarehouse(id: string): Promise<void> {
       await db.settings.delete('lastWarehouseId')
     }
   })
+}
+
+/** 只清当前豆仓的库存项、阈值和流水。豆仓本身、其他仓、图纸、单价都不动。 */
+export async function clearWarehouseInventory(warehouseId: string): Promise<void> {
+  const current = await db.warehouses.get(warehouseId)
+  if (!current) {
+    throw new InventoryError('找不到该豆仓')
+  }
+  await db.transaction('rw', db.warehouses, db.stockItems, db.ledger, db.patternProgress, async () => {
+    await db.stockItems.where('warehouseId').equals(warehouseId).delete()
+    await db.ledger.where('warehouseId').equals(warehouseId).delete()
+    await db.warehouses.update(warehouseId, { updatedAt: now() })
+    if (CLEAR_WAREHOUSE_RELEASE_HOLDS) {
+      const rows = await db.patternProgress.toArray()
+      for (const row of rows) {
+        const holds = holdsFromOtherWarehouses(row.holds, warehouseId)
+        if (holds.length !== row.holds.length) {
+          await db.patternProgress.put({ ...row, holds, updatedAt: now() })
+        }
+      }
+    }
+  })
+}
+
+export async function countHeldPatternsInWarehouse(warehouseId: string): Promise<number> {
+  return countPatternsWithWarehouseHolds(await db.patternProgress.toArray(), warehouseId)
 }
 
 export async function setLastWarehouseId(id: string): Promise<void> {
@@ -170,16 +201,17 @@ export async function inbound(input: {
   return created
 }
 
-export async function applyTemplate(warehouseId: string, templateId: string): Promise<LedgerEntry[]> {
+export async function applyTemplate(warehouseId: string, templateId: string, perColor = 100): Promise<LedgerEntry[]> {
   const template = getTemplate(templateId)
+  const items = scaleTemplate(template, perColor)
   return inbound({
     warehouseId,
-    items: template.items.map((item) => ({
+    items: items.map((item) => ({
       brand: template.brand,
       code: item.code,
       quantity: item.quantity,
     })),
-    note: `套装：${template.name}`,
+    note: `套装：${template.name}（每色 ${perColor} 粒）`,
   })
 }
 

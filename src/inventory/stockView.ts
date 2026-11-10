@@ -7,6 +7,18 @@ import {
   unthresholdedStockoutCount,
 } from '../data/inventoryMath.ts'
 import { findColor } from '../data/palettes.ts'
+import {
+  formatLineAmount,
+  formatPriceYuan,
+  formatQuoteHeadline,
+  formatQuoteTotal,
+  formatQuoteTotalLine,
+  formatUnpricedNote,
+  quoteLine,
+  quoteSummary,
+} from '../data/priceMath.ts'
+import type { PriceBook } from '../data/priceRepo.ts'
+import { effectivePrice, emptyPriceBook } from '../data/priceRepo.ts'
 import type { ColorFamilyId, LedgerEntry, StockItem, StockLine, Warehouse } from '../data/types.ts'
 
 export function toStockLine(item: StockItem): StockLine {
@@ -83,36 +95,56 @@ export function filterStockView(
   return result.filter((line) => isUnthresholdedStockout(line.quantity, line.threshold))
 }
 
-export function formatRestockText(warehouseName: string, lines: StockLine[]): string {
-  const list = restockLines(lines)
-  const summary = restockSummary(list)
-  const header = [
-    `补豆清单（豆仓：${warehouseName}）`,
-    `来自低于或等于阈值，共 ${summary.count} 色、需补 ${summary.need} 粒`,
-    '',
-  ]
-  const body = list.map((line) => {
-    const extra = line.quantity === line.threshold ? '，已到阈值' : ''
-    return `${line.brand} ${line.code}  需补 ${line.restockNeed}（库存 ${line.quantity}，阈值 ${line.threshold}${extra}）`
+export function restockQuoteRows(list: StockLine[], book: PriceBook) {
+  return list.map((line) => {
+    const { li } = effectivePrice(book, line.brand, line.code)
+    return { line, li, quote: quoteLine(line.restockNeed, li) }
   })
-  return [...header, ...body, ''].join('\n')
 }
 
-export function formatRestockCsv(warehouseName: string, lines: StockLine[]): string {
+export function formatRestockText(warehouseName: string, lines: StockLine[], book: PriceBook = emptyPriceBook('')): string {
   const list = restockLines(lines)
-  const rows = [
-    ['豆仓', '品牌', '色号', '库存', '阈值', '需补', '说明'],
-    ...list.map((line) => [
-      warehouseName,
-      line.brand,
-      line.code,
-      String(line.quantity),
-      String(line.threshold ?? ''),
-      String(line.restockNeed),
-      line.quantity === line.threshold ? '已到阈值' : line.statusLabel,
-    ]),
+  const priced = restockQuoteRows(list, book)
+  const quote = quoteSummary(priced.map((row) => ({ need: row.line.restockNeed, li: row.li })))
+  const note = formatUnpricedNote(quote)
+  const header = [
+    `补豆清单（豆仓：${warehouseName}）`,
+    formatQuoteHeadline(quote),
+    ...(note ? [note] : []),
+    '',
   ]
-  return rows.map((row) => row.map(csvCell).join(',')).join('\n') + '\n'
+  const body = priced.map((row) => {
+    const extra = row.line.quantity === row.line.threshold ? '，已到阈值' : ''
+    const price = row.li === null ? '未填' : formatPriceYuan(row.li)
+    const amount = formatLineAmount(row.quote)
+    return `${row.line.brand} ${row.line.code}  需补 ${row.line.restockNeed}  单价 ${price}  小计 ${amount}（库存 ${row.line.quantity}，阈值 ${row.line.threshold}${extra}）`
+  })
+  const footer = [formatQuoteTotalLine(quote), '']
+  return [...header, ...body, ...footer].join('\n')
+}
+
+export function formatRestockCsv(warehouseName: string, lines: StockLine[], book: PriceBook = emptyPriceBook('')): string {
+  const list = restockLines(lines)
+  const priced = restockQuoteRows(list, book)
+  const quote = quoteSummary(priced.map((row) => ({ need: row.line.restockNeed, li: row.li })))
+  const note = formatUnpricedNote(quote)
+  const rows = [
+    ['豆仓', '品牌', '色号', '库存', '阈值', '需补', '单价', '小计', '说明', '合计'],
+    ...priced.map((row) => [
+      warehouseName,
+      row.line.brand,
+      row.line.code,
+      String(row.line.quantity),
+      String(row.line.threshold ?? ''),
+      String(row.line.restockNeed),
+      row.li === null ? '未填' : formatPriceYuan(row.li),
+      formatLineAmount(row.quote),
+      row.line.quantity === row.line.threshold ? '已到阈值' : row.line.statusLabel,
+      '',
+    ]),
+    ['合计', '', '', '', '', '', '', formatQuoteTotal(quote), note ?? '', formatQuoteTotal(quote)],
+  ]
+  return '\uFEFF' + rows.map((row) => row.map(csvCell).join(',')).join('\n') + '\n'
 }
 
 function csvCell(value: string): string {
